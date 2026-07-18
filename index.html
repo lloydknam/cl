@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>클사무관 발송기</title>
+<style>
+  :root{
+    --paper:#FBF9F3; --ink:#1B2A4A; --slate:#5A6B7B;
+    --rule:#D9D2C2; --stamp:#C0392B; --stamp-deep:#9B2D22;
+    --ok:#2E7D5B; --field:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",-apple-system,system-ui,sans-serif;
+    line-height:1.6;
+    min-height:100vh;
+    display:flex; align-items:flex-start; justify-content:center;
+    padding:24px 16px 64px;
+  }
+  .slip{
+    width:100%; max-width:560px; background:var(--field);
+    border:1px solid var(--rule);
+    box-shadow:0 1px 0 var(--rule), 0 18px 40px -28px rgba(27,42,74,.5);
+  }
+  /* 전표 머리 */
+  .head{
+    padding:22px 26px 18px; border-bottom:2px solid var(--ink);
+    display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+  }
+  .eyebrow{
+    font-size:11px; letter-spacing:.22em; text-transform:uppercase;
+    color:var(--slate); margin:0 0 6px;
+  }
+  .title{font-size:25px; font-weight:800; letter-spacing:-.01em; margin:0;}
+  .doc-no{
+    font-family:"SFMono-Regular",ui-monospace,Menlo,Consolas,monospace;
+    font-size:11px; color:var(--slate); text-align:right; white-space:nowrap; padding-top:4px;
+  }
+  /* 수신처 선택 */
+  .to{
+    padding:12px 26px 14px; border-bottom:1px solid var(--rule);
+  }
+  .to .lbl{margin:0 0 8px;}
+  .rooms{display:flex; gap:8px; flex-wrap:wrap;}
+  .room{
+    appearance:none; cursor:pointer; font:inherit;
+    font-size:13px; font-weight:600; color:var(--slate);
+    background:var(--paper); border:1px solid var(--rule); border-radius:2px;
+    padding:8px 12px; display:flex; align-items:center; gap:7px;
+    transition:border-color .12s, color .12s;
+  }
+  .room .mark{
+    width:14px; height:14px; flex:0 0 auto; border-radius:50%;
+    border:1.5px solid var(--rule); display:inline-flex;
+    align-items:center; justify-content:center;
+    font-size:10px; line-height:1; color:transparent;
+  }
+  .room:hover{border-color:var(--slate);}
+  .room.active{
+    color:var(--ink); border-color:var(--stamp);
+    background:#fff; font-weight:700;
+    box-shadow:inset 0 0 0 1px var(--stamp);
+  }
+  .room.active .mark{border-color:var(--stamp); color:var(--stamp);}
+  .room:focus-visible{outline:2px solid var(--ink); outline-offset:2px;}
+  .from-note{font-size:12px; color:var(--slate); margin:10px 0 0;}
+  .from-note b{color:var(--ink); font-weight:700;}
+  /* 본문 */
+  .body{padding:20px 26px 8px;}
+  .lbl{font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--slate); margin:0 0 8px;}
+  textarea{
+    width:100%; min-height:150px; resize:vertical;
+    border:1px solid var(--rule); border-radius:2px; background:var(--paper);
+    padding:14px; font:inherit; color:var(--ink);
+    line-height:1.7;
+  }
+  textarea:focus,input:focus{outline:2px solid var(--ink); outline-offset:1px; background:#fff;}
+  .hint{font-size:11.5px; color:var(--slate); margin:8px 2px 0;}
+  /* 발송 영역 */
+  .foot{
+    padding:8px 26px 24px; display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+  }
+  .stamp{
+    appearance:none; cursor:pointer; border:none; background:transparent;
+    width:96px; height:96px; flex:0 0 auto; position:relative;
+    transition:transform .08s ease;
+  }
+  .stamp:disabled{cursor:not-allowed; opacity:.4;}
+  .stamp .ring{
+    position:absolute; inset:0; border-radius:50%;
+    border:3px solid var(--stamp); color:var(--stamp);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:26px; letter-spacing:.1em;
+    transform:rotate(-9deg);
+    box-shadow:inset 0 0 0 2px rgba(192,57,43,.25);
+  }
+  .stamp:hover:not(:disabled) .ring{background:rgba(192,57,43,.06);}
+  .stamp:active:not(:disabled){transform:scale(.92) rotate(2deg);}
+  .stamp:focus-visible{outline:2px solid var(--ink); outline-offset:4px; border-radius:50%;}
+  .status{font-size:13.5px; color:var(--slate); min-height:1.4em;}
+  .status.ok{color:var(--ok); font-weight:600;}
+  .status.err{color:var(--stamp-deep); font-weight:600;}
+  /* 설정 */
+  details.cfg{border-top:1px solid var(--rule); background:var(--paper);}
+  details.cfg summary{
+    list-style:none; cursor:pointer; padding:14px 26px;
+    font-size:12.5px; font-weight:700; letter-spacing:.04em; color:var(--slate);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  details.cfg summary::-webkit-details-marker{display:none;}
+  details.cfg summary .chev{transition:transform .2s;}
+  details.cfg[open] summary .chev{transform:rotate(90deg);}
+  .cfg-body{padding:2px 26px 22px;}
+  .cfg-body label{display:block; font-size:11.5px; font-weight:700; color:var(--slate); margin:14px 0 5px;}
+  .cfg-body input{
+    width:100%; border:1px solid var(--rule); border-radius:2px; background:#fff;
+    padding:11px 12px;
+    font-family:"SFMono-Regular",ui-monospace,Menlo,Consolas,monospace; font-size:13px; color:var(--ink);
+  }
+  .cfg-note{font-size:11.5px; color:var(--slate); margin:14px 2px 0;}
+  .save{
+    margin-top:14px; appearance:none; cursor:pointer;
+    border:1px solid var(--ink); background:var(--ink); color:#fff;
+    padding:9px 16px; border-radius:2px; font:inherit; font-weight:700; font-size:13px;
+  }
+  .save:active{transform:translateY(1px);}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+  @media (max-width:420px){
+    .head{flex-direction:column; gap:4px;} .doc-no{text-align:left;}
+    .foot{gap:12px;}
+  }
+</style>
+</head>
+<body>
+  <main class="slip" aria-label="클사무관 발송 전표">
+    <div class="head">
+      <div>
+        <p class="eyebrow">기획예산처 · 대외 보고 단말</p>
+        <h1 class="title">클사무관 발송기</h1>
+      </div>
+      <div class="doc-no" id="docNo">문서번호<br>—</div>
+    </div>
+
+    <div class="to">
+      <p class="lbl">수신처 선택</p>
+      <div class="rooms" id="rooms" role="radiogroup" aria-label="수신 채팅방 선택"></div>
+      <p class="from-note">발신: <b>클사무관</b> · 버튼을 누르면 해당 방으로 발송됩니다.</p>
+    </div>
+
+    <div class="body">
+      <p class="lbl">발화 내용</p>
+      <textarea id="msg" placeholder="여기에 입력하면 클사무관 명의로 단톡방에 그대로 전송됩니다.&#10;예) 오늘 환율 심상치 않습니다. 점심값부터 오릅니다."></textarea>
+      <p class="hint">엔터로 줄바꿈됩니다. 입력한 문장 그대로 단톡방에 올라갑니다.</p>
+    </div>
+
+    <div class="foot">
+      <button class="stamp" id="send" aria-label="단톡방에 발송">
+        <span class="ring">발송</span>
+      </button>
+      <span class="status" id="status" role="status" aria-live="polite">설정을 먼저 입력해 주세요.</span>
+    </div>
+
+    <details class="cfg" id="cfg">
+      <summary><span>초기 설정 (봇 토큰 · 채팅방 4곳)</span><span class="chev">›</span></summary>
+      <div class="cfg-body">
+        <label for="token">봇 토큰</label>
+        <input id="token" type="password" autocomplete="off" placeholder="123456789:ABCdef...">
+
+        <label for="r0name">방 1 이름</label>
+        <input id="r0name" type="text" autocomplete="off" placeholder="예) 1:1 테스트">
+        <label for="r0id">방 1 채팅방 ID</label>
+        <input id="r0id" type="text" autocomplete="off" placeholder="xxxxxxxxxx">
+
+        <label for="r1name">방 2 이름</label>
+        <input id="r1name" type="text" autocomplete="off" placeholder="예) 2026H2 새 방">
+        <label for="r1id">방 2 채팅방 ID</label>
+        <input id="r1id" type="text" autocomplete="off" placeholder="-xxxxxxxxxx">
+
+        <label for="r2name">방 3 이름</label>
+        <input id="r2name" type="text" autocomplete="off" placeholder="예) 과장 이상 방">
+        <label for="r2id">방 3 채팅방 ID</label>
+        <input id="r2id" type="text" autocomplete="off" placeholder="-xxxxxxxxxx">
+
+        <label for="r3name">방 4 이름</label>
+        <input id="r3name" type="text" autocomplete="off" placeholder="예) 공개채널">
+        <label for="r3id">방 4 채팅방 ID (@주소 가능)</label>
+        <input id="r3id" type="text" autocomplete="off" placeholder="@channel_address 또는 -100xxxxxxxxxx">
+
+        <button class="save" id="save">저장</button>
+        <p class="cfg-note">공개 채널은 숫자 ID 대신 <b>@주소</b>(예: @global_brief)를 그대로 넣으면 됩니다. 단, 봇이 그 채널의 <b>관리자(글쓰기 권한)</b>여야 발송됩니다. 토큰은 비밀번호처럼 다뤄 주세요 — 이 파일을 공유하지 마세요.</p>
+      </div>
+    </details>
+  </main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const msg = $("msg"), sendBtn = $("send"), status = $("status");
+  const tokenIn = $("token"), cfg = $("cfg"), roomsEl = $("rooms");
+  const roomIn = i => ({ name: $("r"+i+"name"), id: $("r"+i+"id") });
+
+  // 기본 방 4곳 (설정에서 언제든 수정 가능)
+  const DEFAULT_ROOMS = [
+    { name: "1:1 테스트",       id: "7407118312"  },
+    { name: "2026H2 새 방",     id: "-5328953743" },
+    { name: "과장 이상 방",     id: "-5221752103" },
+    { name: "공개채널",         id: "" }
+  ];
+
+  // 저장된 설정 불러오기
+  tokenIn.value = localStorage.getItem("kls_token") || "";
+  let rooms;
+  try { rooms = JSON.parse(localStorage.getItem("kls_rooms")); } catch(e){ rooms = null; }
+  if(!Array.isArray(rooms) || rooms.length !== 4){
+    const prev = Array.isArray(rooms) ? rooms : [];
+    rooms = DEFAULT_ROOMS.map(r => ({ ...r }));
+    // 이전 버전(3개 방) 설정이 있으면 공개채널 ID 등 직접 넣었던 값 이어받기
+    prev.forEach(p => {
+      const hit = rooms.findIndex(r => r.id && p.id && r.id === p.id);
+      if(hit >= 0) rooms[hit].name = p.name || rooms[hit].name;
+    });
+    // 구버전 발송기의 단일 chat_id가 있으면 이어받기
+    const oldChat = (localStorage.getItem("kls_chat") || "").trim();
+    if(oldChat && !rooms.some(r => r.id === oldChat)){
+      rooms[3] = { name: "기존 설정 방", id: oldChat };
+    }
+  }
+  let sel = parseInt(localStorage.getItem("kls_room_sel"), 10);
+  if(!(sel >= 0 && sel <= 3)) sel = 0;
+
+  // 설정 입력칸 채우기
+  for(let i = 0; i < 4; i++){
+    roomIn(i).name.value = rooms[i].name;
+    roomIn(i).id.value = rooms[i].id;
+  }
+
+  function currentRoom(){ return rooms[sel] || { name: "", id: "" }; }
+  function ready(){ return tokenIn.value.trim() && currentRoom().id.trim(); }
+
+  function renderRooms(){
+    roomsEl.innerHTML = "";
+    rooms.forEach((r, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "room" + (i === sel ? " active" : "");
+      b.setAttribute("role", "radio");
+      b.setAttribute("aria-checked", i === sel ? "true" : "false");
+      const mark = document.createElement("span");
+      mark.className = "mark"; mark.textContent = "✓";
+      const label = document.createElement("span");
+      label.textContent = r.name || ("방 " + (i + 1));
+      b.append(mark, label);
+      b.addEventListener("click", () => {
+        sel = i;
+        localStorage.setItem("kls_room_sel", String(sel));
+        renderRooms();
+        refresh();
+      });
+      roomsEl.appendChild(b);
+    });
+  }
+
+  function refresh(){
+    if(ready()){
+      setStatus("수신처: " + (currentRoom().name || "이름 없는 방") + " · 내용을 입력하고 도장을 찍으세요.", "");
+    } else if(!tokenIn.value.trim()){
+      setStatus("설정에서 봇 토큰을 먼저 입력해 주세요.", "");
+      cfg.open = true;
+    } else {
+      setStatus("선택한 방의 채팅방 ID가 비어 있습니다. 설정에서 입력해 주세요.", "");
+      cfg.open = true;
+    }
+  }
+  function setStatus(t, cls){ status.textContent = t; status.className = "status" + (cls ? " " + cls : ""); }
+
+  $("save").addEventListener("click", () => {
+    localStorage.setItem("kls_token", tokenIn.value.trim());
+    for(let i = 0; i < 4; i++){
+      rooms[i] = {
+        name: roomIn(i).name.value.trim() || ("방 " + (i + 1)),
+        id: roomIn(i).id.value.trim()
+      };
+    }
+    localStorage.setItem("kls_rooms", JSON.stringify(rooms));
+    cfg.open = false;
+    renderRooms();
+    refresh();
+  });
+
+  function stampDoc(){
+    const d = new Date();
+    const p = n => String(n).padStart(2,"0");
+    $("docNo").innerHTML = "발송완료<br>" + p(d.getHours()) + ":" + p(d.getMinutes());
+  }
+
+  async function send(){
+    if(!ready()){ cfg.open = true; tokenIn.focus(); setStatus("봇 토큰과 선택한 방의 채팅방 ID를 먼저 저장해 주세요.", "err"); return; }
+    const text = msg.value.trim();
+    if(!text){ msg.focus(); setStatus("보낼 내용을 입력해 주세요.", "err"); return; }
+
+    sendBtn.disabled = true;
+    setStatus((currentRoom().name || "선택한 방") + "(으)로 발송 중…", "");
+    const base = "https://api.telegram.org/bot" + tokenIn.value.trim() + "/sendMessage";
+    const params = new URLSearchParams({
+      chat_id: currentRoom().id.trim(),
+      text: text,
+      disable_web_page_preview: "true"
+    });
+    try {
+      const res = await fetch(base + "?" + params.toString());
+      const data = await res.json();
+      if(data.ok){
+        setStatus((currentRoom().name || "선택한 방") + "에 발송했습니다.", "ok");
+        stampDoc();
+        msg.value = "";
+        msg.focus();
+      } else {
+        const desc = data.description || "알 수 없는 오류";
+        if(/chat not found/i.test(desc)) setStatus("전송 실패: 선택한 방의 채팅방 ID를 확인해 주세요.", "err");
+        else if(/unauthorized/i.test(desc)) setStatus("전송 실패: 봇 토큰을 확인해 주세요.", "err");
+        else if(/not a member|kicked|bot was blocked/i.test(desc)) setStatus("전송 실패: 봇이 그 방에 들어가 있는지 확인해 주세요.", "err");
+        else setStatus("전송 실패: " + desc, "err");
+      }
+    } catch(e){
+      setStatus("전송 실패: 인터넷 연결을 확인해 주세요.", "err");
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
+  sendBtn.addEventListener("click", send);
+  // Ctrl/Cmd + Enter 로도 발송
+  msg.addEventListener("keydown", e => {
+    if((e.ctrlKey || e.metaKey) && e.key === "Enter") send();
+  });
+
+  renderRooms();
+  refresh();
+</script>
+</body>
+</html>
